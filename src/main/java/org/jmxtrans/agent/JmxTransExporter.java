@@ -23,23 +23,24 @@
  */
 package org.jmxtrans.agent;
 
+import org.jmxtrans.agent.util.GcdCalculator;
+import org.jmxtrans.agent.util.OpenFalconGroupMessage;
+import org.jmxtrans.agent.util.OpenFalconGroupThread;
+import org.jmxtrans.agent.util.logging.Logger;
+
+import javax.management.MBeanServerConnection;
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.math.BigInteger;
+import java.net.MalformedURLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
-
-import javax.management.MBeanServer;
-
-import org.jmxtrans.agent.util.GcdCalculator;
-import org.jmxtrans.agent.util.logging.Logger;
 
 /**
  * @author <a href="mailto:cleclerc@cloudbees.com">Cyrille Le Clerc</a>
@@ -58,7 +59,7 @@ public class JmxTransExporter {
         }
     };
     private ScheduledExecutorService scheduledExecutorService;
-    private MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
+    private MBeanServerConnection mbeanServer = ManagementFactory.getPlatformMBeanServer();
     private ScheduledFuture scheduledFuture;
     private JmxTransConfigurationLoader configLoader;
     private volatile JmxTransExporterConfiguration config;
@@ -71,6 +72,37 @@ public class JmxTransExporter {
     }
 
     private void loadNewConfiguration() {
+        String jmxURL = "service:jmx:rmi:///jndi/rmi://10.211.253.56:10053/jmxrmi";//tomcat jmx url
+        try {
+            JMXServiceURL serviceURL  = new JMXServiceURL(jmxURL);
+            JMXConnector connect = JMXConnectorFactory.connect(serviceURL);
+            mbeanServer=connect.getMBeanServerConnection();
+//            try {
+//                ObjectName objectName=new ObjectName("java.lang:type=Threading");
+//                Set<ObjectName> objectNames = mBeanServerConnection.queryNames(objectName, null);
+//                String attribute="ThreadCount";
+//                for(ObjectName objectName1 : objectNames){
+//                    Object obj = mBeanServerConnection.getAttribute(objectName, attribute);
+//                    System.out.println("ob="+obj);
+//                }
+//            } catch (MalformedObjectNameException e) {
+//                e.printStackTrace();
+//            } catch (AttributeNotFoundException e) {
+//                e.printStackTrace();
+//            } catch (InstanceNotFoundException e) {
+//                e.printStackTrace();
+//            } catch (ReflectionException e) {
+//                e.printStackTrace();
+//            } catch (MBeanException e) {
+//                e.printStackTrace();
+//            }
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         this.config = configLoader.loadConfiguration();
         logger.finest("Configuration loaded: " + config);
         this.collectors = createTimeTrackingCollectors();
@@ -111,6 +143,7 @@ public class JmxTransExporter {
     }
 
     public void start() {
+        logger.info("start begin at "+System.currentTimeMillis());
         if (logger.isLoggable(Level.FINER)) {
             logger.fine("starting " + this.toString() + " ...");
         } else {
@@ -121,7 +154,6 @@ public class JmxTransExporter {
             throw new IllegalArgumentException("Exporter is already started: scheduledExecutorService=" + scheduledExecutorService + ", scheduledFuture=" + scheduledFuture);
 
         scheduledExecutorService = Executors.newScheduledThreadPool(1, threadFactory);
-
         if (config.getResultNameStrategy() == null)
             throw new IllegalStateException("resultNameStrategy is not defined, jmxTransExporter is not properly initialised");
 
@@ -131,7 +163,7 @@ public class JmxTransExporter {
                 collectAndExport();
             }
         }, runIntervalMillis / 2, runIntervalMillis, TimeUnit.MILLISECONDS);
-
+        logger.info("getConfigReloadInterVal is "+config.getConfigReloadInterval());
         if (config.getConfigReloadInterval() >= 0) {
             Runnable runnable = new Runnable() {
                 private final Logger logger = Logger.getLogger(JmxTransExporter.class.getName() + ".reloader");
@@ -175,6 +207,7 @@ public class JmxTransExporter {
     }
 
     public void stop() {
+        logger.info("stop at ........"+System.currentTimeMillis());
         // cancel jobs
         if (scheduledFuture != null) {
             scheduledFuture.cancel(true);
@@ -204,12 +237,22 @@ public class JmxTransExporter {
         OutputWriter outputWriter = config.getOutputWriter();
         try {
             outputWriter.preCollect();
+            int index=collectors.size();
+            OpenFalconGroupMessage message= OpenFalconGroupThread.getCurrentThreadGroupMessage();
+            message.setOpenFalconOutputObjectList(null);
+            message.setRunIntervalMillis(runIntervalMillis);
             for (TimeTrackingCollector collector : collectors) {
+                index --;
                 try {
+                    if(index==0){
+                        message.setFinished(true);
+                    }
                     collector.collectIfEnoughTimeHasPassed(mbeanServer, outputWriter);
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "Ignore exception collecting with collector " + collector, e);
                 }
+
+
             }
             outputWriter.postCollect();
         } catch (Exception e) {
@@ -223,5 +266,4 @@ public class JmxTransExporter {
                 ", configuration=" + config +
                 '}';
     }
-
 }

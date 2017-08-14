@@ -28,4 +28,5 @@
         <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="used" resultAlias="jvm.heapMemoryUsage.used" type="GUAGE"/>
     </queries>
     <outputWriter class="org.jmxtrans.agent.ConsoleOutputWriter"/>
+    <outputWriter class="org.jmxtrans.agent.OpenFalconConsoleOutputWriter"/>
 </jmxtrans-agent>

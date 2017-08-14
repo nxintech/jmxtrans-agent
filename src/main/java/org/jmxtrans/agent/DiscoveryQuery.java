@@ -23,17 +23,17 @@
  */
 package org.jmxtrans.agent;
 
-import java.util.List;
-import java.util.Set;
-import java.util.logging.Level;
-
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-
 import org.jmxtrans.agent.util.StringUtils2;
 import org.jmxtrans.agent.util.json.JsonArray;
 import org.jmxtrans.agent.util.json.JsonObject;
 import org.jmxtrans.agent.util.logging.Logger;
+
+import javax.management.MBeanServer;
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
 
 /**
  * DiscoveryQuery : Used to discover a list of JMX beans matching a specific naming pattern.
@@ -122,6 +122,30 @@ public class DiscoveryQuery extends Query
         {
             logger.log(Level.WARNING, "DiscoveryQuery. Exception collecting " + objectName + "#" + getAttributes() +
                 (key == null ? "" : "#" + key), ex);
+        }
+    }
+
+    @Override
+    public void collectAndExport(MBeanServerConnection mBeanServerConnection, OutputWriter outputWriter)
+    {
+        if (resultNameStrategy == null)
+            throw new IllegalStateException(
+                    "resultNameStrategy is not defined, query object is not properly initialized");
+
+        try
+        {
+            Set<ObjectName> objectNames = mBeanServerConnection.queryNames(objectName, null);
+
+            String discoveryResult = formatDiscoveryValue(objectNames);
+
+            String resultName = resultNameStrategy.getResultName(this, objectName, null, null, null);
+            String type = getType();
+            outputWriter.writeQueryResult(resultName, type, discoveryResult);
+        }
+        catch (Exception ex)
+        {
+            logger.log(Level.WARNING, "DiscoveryQuery. Exception collecting " + objectName + "#" + getAttributes() +
+                    (key == null ? "" : "#" + key), ex);
         }
     }
 

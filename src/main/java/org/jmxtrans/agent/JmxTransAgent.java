@@ -87,7 +87,27 @@ public class JmxTransAgent {
     }
 
     public static void main(String[] args) {
+        String configPath="jmxtrans-config.xml";
+        if(null!=args && args.length>0){
+            configPath=args[0];
+            logger.info(String.format("run by assign config path %s",configPath));
+        }else{
+            logger.info(String.format("run by default config path  %s",configPath));
+        }
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         Logger.out.println(getVersionInfo());
+        initializeAgent(configPath);
+        while(true){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**

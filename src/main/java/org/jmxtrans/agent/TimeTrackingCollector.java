@@ -23,9 +23,9 @@
  */
 package org.jmxtrans.agent;
 
-import java.util.concurrent.TimeUnit;
-
 import javax.management.MBeanServer;
+import javax.management.MBeanServerConnection;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Collector that keeps track of when it was last run and which interval it needs to be run at.
@@ -55,6 +55,13 @@ public class TimeTrackingCollector {
         }
     }
 
+    public void collectIfEnoughTimeHasPassed(MBeanServerConnection mbeanServer, OutputWriter outputWriter) {
+        long currentMillis = currentMillis();
+        if (currentMillis >= lastRun + collectIntervalMillis) {
+            lastRun = currentMillis;
+            collector.collectAndExport(mbeanServer, outputWriter);
+        }
+    }
     public long getCollectIntervalMillis() {
         return collectIntervalMillis;
     }

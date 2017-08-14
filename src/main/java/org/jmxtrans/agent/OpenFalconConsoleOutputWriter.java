@@ -23,34 +23,54 @@
  */
 package org.jmxtrans.agent;
 
+import com.alibaba.fastjson.JSON;
+import org.jmxtrans.agent.util.OpenFalconGroupMessage;
+import org.jmxtrans.agent.util.OpenFalconGroupThread;
+import org.jmxtrans.agent.util.OpenFalconOutputObject;
 import org.jmxtrans.agent.util.StringUtils2;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author <a href="mailto:cleclerc@cloudbees.com">Cyrille Le Clerc</a>
  */
-public class ConsoleOutputWriter extends AbstractOutputWriter implements OutputWriter {
+public class OpenFalconConsoleOutputWriter extends AbstractOutputWriter implements OutputWriter {
 
     private String metricPathPrefix;
 
+
     @Override
     public void postConstruct(@Nonnull Map<String, String> settings) {
-        logger.info("ConsoleOutputWriter postConstruct method begin process");
         this.metricPathPrefix = StringUtils2.trimToEmpty(settings.get("namePrefix"));
+        logger.info("OpenFalconConsoleOutputWriter postConstruct invoked");
     }
 
     @Override
     public void writeQueryResult(@Nonnull String name, @Nullable String type, @Nullable Object value) {
-        System.out.println(metricPathPrefix + name + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        try{
+            OpenFalconGroupMessage message= OpenFalconGroupThread.getCurrentThreadGroupMessage();
+            //logger.info("get message is "+message);
+            List<OpenFalconOutputObject> openFalconOutputObjectList=message.getOpenFalconOutputObjectList();
+            //logger.info("get openFalconOutputObjectList is "+openFalconOutputObjectList);
+            String json= JSON.toJSONString(openFalconOutputObjectList);
+            logger.info(String.format("OpenFalconConsole write json is %s",json));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+        //System.out.println(metricPathPrefix + name + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        //System.out.println("get result name is  "+name+" , type is  "+type + " ; value is  "+value+" ;  TimeUnit is "+TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        //System.out.println(metricPathPrefix + name + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
     }
 
     @Override
     public void writeInvocationResult(@Nonnull String invocationName, @Nullable Object value) throws IOException {
-        System.out.println(metricPathPrefix + invocationName + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        System.out.println("writeInvocationResult  invocationName is  "+invocationName+" ,  value is  "+value+" ;  TimeUnit is "+TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        //System.out.println(metricPathPrefix + invocationName + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
     }
 }

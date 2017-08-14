@@ -29,6 +29,7 @@ import org.jmxtrans.agent.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.management.MBeanServer;
+import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import java.util.Arrays;
@@ -94,6 +95,11 @@ public class Invocation implements Collector {
     @Override
     public void collectAndExport(MBeanServer mbeanServer, OutputWriter outputWriter) {
         invoke(mbeanServer, outputWriter);
+    }
+
+    @Override
+    public void collectAndExport(MBeanServerConnection mbeanServer, OutputWriter outputWriter) {
+
     }
 
     @Nullable

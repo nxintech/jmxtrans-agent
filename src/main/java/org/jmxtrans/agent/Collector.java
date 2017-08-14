@@ -24,6 +24,7 @@
 package org.jmxtrans.agent;
 
 import javax.management.MBeanServer;
+import javax.management.MBeanServerConnection;
 
 /**
  * @author Kristoffer Erlandsson
@@ -31,5 +32,6 @@ import javax.management.MBeanServer;
 public interface Collector {
 
     void collectAndExport(MBeanServer mbeanServer, OutputWriter outputWriter);
-    
+    void collectAndExport(MBeanServerConnection mbeanServer, OutputWriter outputWriter);
+
 }

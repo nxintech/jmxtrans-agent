@@ -23,6 +23,9 @@
  */
 package org.jmxtrans.agent;
 
+import org.jmxtrans.agent.util.OpenFalconGroupThread;
+import org.jmxtrans.agent.util.OpenFalconGroupMessage;
+import org.jmxtrans.agent.util.OpenFalconOutputObject;
 import org.jmxtrans.agent.util.Preconditions2;
 import org.jmxtrans.agent.util.collect.Iterables2;
 import org.jmxtrans.agent.util.logging.Logger;
@@ -34,7 +37,10 @@ import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeType;
 import java.io.IOException;
 import java.lang.reflect.Array;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 
 /**
@@ -167,8 +173,28 @@ public class Query implements Collector {
             collectAndExportForObjectName(mbeanServer, outputWriter, on);
         }
     }
+    public void collectAndExport(@Nonnull MBeanServerConnection mbeanServer, @Nonnull OutputWriter outputWriter) {
+        if (resultNameStrategy == null)
+            throw new IllegalStateException("resultNameStrategy is not defined, query object is not properly initialized");
+
+        Set<ObjectName> objectNames = null;
+        try {
+            objectNames = mbeanServer.queryNames(objectName, null);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        for (ObjectName on : objectNames) {
+            collectAndExportForObjectName(mbeanServer, outputWriter, on);
+        }
+    }
 
     private void collectAndExportForObjectName(MBeanServer mbeanServer, OutputWriter outputWriter, ObjectName on) {
+        for (String attribute : resolveAttributes(mbeanServer, on)) {
+            collectAndExportAttribute(mbeanServer, outputWriter, on, attribute);
+        }
+    }
+    private void collectAndExportForObjectName(MBeanServerConnection mbeanServer, OutputWriter outputWriter, ObjectName on) {
         for (String attribute : resolveAttributes(mbeanServer, on)) {
             collectAndExportAttribute(mbeanServer, outputWriter, on, attribute);
         }
@@ -176,6 +202,12 @@ public class Query implements Collector {
 
 
     private List<String> resolveAttributes(MBeanServer mbeanServer, ObjectName on) {
+        if (attributes.isEmpty()) {
+            return findAllAttributes(mbeanServer, on);
+        }
+        return attributes;
+    }
+    private List<String> resolveAttributes(MBeanServerConnection mbeanServer, ObjectName on) {
         if (attributes.isEmpty()) {
             return findAllAttributes(mbeanServer, on);
         }
@@ -194,8 +226,24 @@ public class Query implements Collector {
         }
         return resolvedAttributes;
     }
+    private List<String> findAllAttributes(MBeanServerConnection mbeanServer, ObjectName on) {
+        List<String> resolvedAttributes = new ArrayList<>();
+        // Null or empty attribute specified, collect all attributes
+        try {
+            try {
+                for (MBeanAttributeInfo mBeanAttributeInfo : mbeanServer.getMBeanInfo(on).getAttributes()) {
+                    resolvedAttributes.add(mBeanAttributeInfo.getName());
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } catch (IntrospectionException | InstanceNotFoundException | ReflectionException e) {
+            logger.log(Level.WARNING, "Error when finding attributes for ObjectName " + on + ", all attributes will not be collected", e);
+        }
+        return resolvedAttributes;
+    }
 
-    private void collectAndExportAttribute(MBeanServer mbeanServer, OutputWriter outputWriter, ObjectName objectName, String attribute) {
+    private void collectAndExportAttribute(MBeanServerConnection mbeanServer, OutputWriter outputWriter, ObjectName objectName, String attribute) {
         try {
             Object attributeValue = null;
             try {
@@ -242,6 +290,12 @@ public class Query implements Collector {
         }
     }
 
+    private void createOpenFalconMessage(String objectName, String key, Object value) {
+        OpenFalconGroupMessage openFalconGroupMessage= OpenFalconGroupThread.getCurrentThreadGroupMessage();
+        OpenFalconOutputObject openFalconOutputObject=OpenFalconOutputObject.createNewOpenFalconOutObject(objectName,type,value,resultAlias,openFalconGroupMessage.getRunIntervalMillis());
+        openFalconGroupMessage.addOpenFalconOutObject(openFalconOutputObject);
+    }
+
     /**
      *
      * @param outputWriter
@@ -253,7 +307,6 @@ public class Query implements Collector {
      */
     private void processAttributeValue(@Nonnull OutputWriter outputWriter, @Nonnull ObjectName objectName, @Nonnull String attribute,
                                        @Nullable String compositeDataKey, Object value) throws IOException {
-
         if (value instanceof Iterable) {
             Iterable valueAsIterable = (Iterable) value;
             if (position == null) {
@@ -261,17 +314,24 @@ public class Query implements Collector {
                 int idx = 0;
                 for (Object subValue : valueAsIterable) {
                     String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, idx);
+                    createOpenFalconMessage(resultName,key,value);
                     outputWriter.writeQueryResult(resultName, type, subValue);
                     idx++;
                 }
             } else {
                 String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, position);
                 value = Iterables2.get((Iterable) value, position);
+                createOpenFalconMessage(resultName,key,value);
                 outputWriter.writeQueryResult(resultName, type, value);
             }
         } else {
-            String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, null);
-            outputWriter.writeQueryResult(resultName, type, value);
+            try{
+                String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, null);
+                createOpenFalconMessage(resultName,type,value);
+                outputWriter.writeQueryResult(resultName, type, value);
+            }catch (Exception e){
+                e.printStackTrace();
+            }
         }
     }
 
