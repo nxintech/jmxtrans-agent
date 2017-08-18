@@ -23,10 +23,22 @@
 -->
 <jmxtrans-agent>
     <collectIntervalInSeconds>1</collectIntervalInSeconds>
+    <jmxInfo host="10.211.253.56" port="10053"/>
     <queries>
         <query objectName="java.lang:type=Threading" attribute="ThreadCount" resultAlias="jvm.thread" type="GUAGE"/>
-        <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="used" resultAlias="jvm.heapMemoryUsage.used" type="GUAGE"/>
+        <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.max" type="GUAGE"/>
+    	<query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="used" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.used" type="GUAGE"/>
+    	<query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.max" type="GUAGE"/>
+    	<query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="used" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.used" type="GUAGE"/>
     </queries>
-    <outputWriter class="org.jmxtrans.agent.ConsoleOutputWriter"/>
-    <outputWriter class="org.jmxtrans.agent.OpenFalconConsoleOutputWriter"/>
+    <!--<outputWriter class="org.jmxtrans.agent.ConsoleOutputWriter"/>-->
+    <outputWriter class="org.jmxtrans.agent.openfalcon.OpenFalconHttpWriter">
+    	<url>http://pm.t.nxin.com/login.jsp</url>
+    	<aggregates>
+	    	<aggregate resultAlias="jvm.java.lang.MemoryPool.CodeCache.usedPercent" type="GUAGE" class="org.jmxtrans.agent.openfalcon.DoubleAggregateDivisionMethod">
+	        	<queryResultKey>jvm.java.lang.Memory.HeapMemoryUsage.used</queryResultKey>
+	        	<queryResultKey>jvm.java.lang.Memory.HeapMemoryUsage.max</queryResultKey>
+    		</aggregate>
+    </aggregates>
+    </outputWriter>
 </jmxtrans-agent>

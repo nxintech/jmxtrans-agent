@@ -14,9 +14,6 @@ public class OpenFalconConsoleOutputWriterTest {
         JmxTransConfigurationLoader loader = new JmxTransConfigurationXmlLoader(resource);
         JmxTransExporter exporter = new JmxTransExporter(loader);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//        PrintStream ps = new PrintStream(baos);
-//        PrintStream prev = System.out;
-//        System.setOut(ps);
         try {
             exporter.collectAndExport();
             try {

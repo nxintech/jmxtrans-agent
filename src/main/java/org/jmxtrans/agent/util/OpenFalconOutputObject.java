@@ -70,14 +70,15 @@ public class OpenFalconOutputObject {
         this.value = value;
     }
 
-    public static OpenFalconOutputObject createNewOpenFalconOutObject(String objectName, String type, Object value, String resultAlias,long step) {
+    public static OpenFalconOutputObject createNewOpenFalconOutObject(String objectName, String type, Object value, String resultAlias,long step,String endpoint) {
         OpenFalconOutputObject openFalconOutputObject=new OpenFalconOutputObject();
         openFalconOutputObject.setTags(objectName);
         openFalconOutputObject.setCounterType(type);
-        openFalconOutputObject.setStep(step);
+        openFalconOutputObject.setStep(step/1000);
         openFalconOutputObject.setValue(value);
         openFalconOutputObject.setMetric(resultAlias);
         openFalconOutputObject.setTimestamp(TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
+        openFalconOutputObject.setEndpoint(endpoint);
         return openFalconOutputObject;
     }
 }

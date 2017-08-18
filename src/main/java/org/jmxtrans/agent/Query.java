@@ -23,9 +23,6 @@
  */
 package org.jmxtrans.agent;
 
-import org.jmxtrans.agent.util.OpenFalconGroupThread;
-import org.jmxtrans.agent.util.OpenFalconGroupMessage;
-import org.jmxtrans.agent.util.OpenFalconOutputObject;
 import org.jmxtrans.agent.util.Preconditions2;
 import org.jmxtrans.agent.util.collect.Iterables2;
 import org.jmxtrans.agent.util.logging.Logger;
@@ -290,11 +287,11 @@ public class Query implements Collector {
         }
     }
 
-    private void createOpenFalconMessage(String objectName, String key, Object value) {
-        OpenFalconGroupMessage openFalconGroupMessage= OpenFalconGroupThread.getCurrentThreadGroupMessage();
-        OpenFalconOutputObject openFalconOutputObject=OpenFalconOutputObject.createNewOpenFalconOutObject(objectName,type,value,resultAlias,openFalconGroupMessage.getRunIntervalMillis());
-        openFalconGroupMessage.addOpenFalconOutObject(openFalconOutputObject);
-    }
+//    private void createOpenFalconMessage(String objectName, String key, Object value) {
+//        OpenFalconGroupMessage openFalconGroupMessage= OpenFalconGroupThread.getCurrentThreadGroupMessage();
+//        OpenFalconOutputObject openFalconOutputObject=OpenFalconOutputObject.createNewOpenFalconOutObject(objectName,type,value,resultAlias,openFalconGroupMessage.getRunIntervalMillis());
+//        openFalconGroupMessage.addOpenFalconOutObject(openFalconOutputObject);
+//    }
 
     /**
      *
@@ -314,20 +311,19 @@ public class Query implements Collector {
                 int idx = 0;
                 for (Object subValue : valueAsIterable) {
                     String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, idx);
-                    createOpenFalconMessage(resultName,key,value);
+                    //createOpenFalconMessage(resultName,key,value);
                     outputWriter.writeQueryResult(resultName, type, subValue);
                     idx++;
                 }
             } else {
                 String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, position);
                 value = Iterables2.get((Iterable) value, position);
-                createOpenFalconMessage(resultName,key,value);
                 outputWriter.writeQueryResult(resultName, type, value);
             }
         } else {
             try{
                 String resultName = resultNameStrategy.getResultName(this, objectName, attribute, compositeDataKey, null);
-                createOpenFalconMessage(resultName,type,value);
+                //createOpenFalconMessage(resultName,type,value);
                 outputWriter.writeQueryResult(resultName, type, value);
             }catch (Exception e){
                 e.printStackTrace();

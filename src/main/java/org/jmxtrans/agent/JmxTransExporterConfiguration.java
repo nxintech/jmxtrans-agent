@@ -23,14 +23,13 @@
  */
 package org.jmxtrans.agent;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import org.w3c.dom.Document;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
-import org.w3c.dom.Document;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author <a href="mailto:cleclerc@cloudbees.com">Cyrille Le Clerc</a>
@@ -50,6 +49,7 @@ public class JmxTransExporterConfiguration {
      * visible for test
      */
     protected OutputWriter outputWriter = new DevNullOutputWriter();
+    protected JmxInfo jmxInfo;
 
     protected ResultNameStrategy resultNameStrategy;
     protected int collectInterval = 10;
@@ -122,6 +122,14 @@ public class JmxTransExporterConfiguration {
 
     public TimeUnit getCollectIntervalTimeUnit() {
         return collectIntervalTimeUnit;
+    }
+
+    public JmxInfo getJmxInfo() {
+        return jmxInfo;
+    }
+
+    public void setJmxInfo(JmxInfo jmxInfo) {
+        this.jmxInfo = jmxInfo;
     }
 
     @Override

@@ -23,16 +23,6 @@
  */
 package org.jmxtrans.agent;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.regex.Pattern;
-
 import org.jmxtrans.agent.properties.NoPropertiesSourcePropertiesLoader;
 import org.jmxtrans.agent.properties.PropertiesLoader;
 import org.jmxtrans.agent.util.Preconditions2;
@@ -46,6 +36,16 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import javax.annotation.Nonnull;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.StringWriter;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 /**
  * XML configuration parser.
@@ -102,8 +102,9 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
     }
 
     protected JmxTransExporterConfiguration build(Document document) {
-        Element rootElement = document.getDocumentElement();
 
+
+        Element rootElement = document.getDocumentElement();
         Map<String, String> loadedProperties = loadPropertiesOrEmptyOnException();
         PropertyPlaceholderResolver resolver = new PropertyPlaceholderResolver(loadedProperties);
         JmxTransExporterConfiguration jmxTransExporterConfiguration = new JmxTransExporterConfiguration(document);
@@ -122,9 +123,8 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
         buildInvocations(rootElement, jmxTransExporterConfiguration);
         buildQueries(rootElement, jmxTransExporterConfiguration);
         buildDiscoveryQueries(rootElement, jmxTransExporterConfiguration);
-
         buildOutputWriters(rootElement, jmxTransExporterConfiguration, resolver);
-
+        buildJmxInfoConfig(rootElement,jmxTransExporterConfiguration);
         return jmxTransExporterConfiguration;
     }
 
@@ -191,7 +191,7 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
             configuration.withQuery(objectName, attributes, key, position, type, resultAlias, collectInterval);
         }
     }
-    
+
     private void buildDiscoveryQueries(Element rootElement, JmxTransExporterConfiguration configuration) {
         NodeList queries = rootElement.getElementsByTagName("discoveryQuery");
         for (int i = 0; i < queries.getLength(); i++) {
@@ -300,7 +300,6 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
     private void buildOutputWriters(Element rootElement, JmxTransExporterConfiguration configuration, PropertyPlaceholderResolver placeholderResolver) {
         NodeList outputWriterNodeList = rootElement.getElementsByTagName("outputWriter");
         List<OutputWriter> outputWriters = new ArrayList<>();
-
         for (int i = 0; i < outputWriterNodeList.getLength(); i++) {
             Element outputWriterElement = (Element) outputWriterNodeList.item(i);
             String outputWriterClass = outputWriterElement.getAttribute("class");
@@ -318,6 +317,9 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
                     String settingWithPlaceholdersResolved = placeholderResolver.resolveString(settingText);
                     String settingWithFunctionsApplied = expressionLanguageEngine.resolveExpression(settingWithPlaceholdersResolved);
                     settings.put(settingElement.getNodeName(), settingWithFunctionsApplied);
+                    if(settingElement.getTagName().equals("aggregates")){
+                       buildOutputWriteAggregate(settingElement,settings);
+                    }
                 }
                 outputWriter = new OutputWriterCircuitBreakerDecorator(outputWriter);
                 outputWriter.postConstruct(settings);
@@ -337,6 +339,64 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
                 break;
             default:
                 configuration.withOutputWriter(new OutputWritersChain(outputWriters));
+        }
+    }
+
+    private void buildOutputWriteAggregate(Element settingElement, Map<String, String> settings) {
+        try {
+            TransformerFactory transformerFactory=TransformerFactory.newInstance();
+            Transformer transformer=transformerFactory.newTransformer();
+            StringWriter buffer=new StringWriter();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+            transformer.transform(new DOMSource(settingElement),new StreamResult(buffer));
+            settings.put("aggregates",buffer.toString());
+        }catch (Exception e){
+            logger.finest("load aggregates error");
+            e.printStackTrace();
+        }
+        //settingElement.getChildNodes().toString()
+//        NodeList aggregateList=settingElement.getChildNodes();
+//        for (int i = 0; i < aggregateList.getLength(); i++) {
+//            Element elementAggregate = (Element) aggregateList.item(i);
+//            String methodClass = elementAggregate.getAttribute("class");
+//            String resultAlias = elementAggregate.getAttribute("resultAlias");
+//            String type = elementAggregate.getAttribute("type");
+//            AggregateMethod aggregateMethod;
+//            if (methodClass.isEmpty())
+//                throw new IllegalArgumentException("<resultNameStrategy> element must contain a 'class' attribute");
+//
+//            try {
+//                Aggregate aggregate=new Aggregate();
+//                aggregateMethod = (AggregateMethod) Class.forName(methodClass).newInstance();
+//                aggregate.setAggregateMethod(aggregateMethod);
+//                aggregate.setResultAlias(resultAlias);
+//                aggregate.setType(type);
+//               // Map<String, String> settings = new HashMap<>();
+////                NodeList settingsNodeList = resultNameStrategyElement.getElementsByTagName("*");
+////                for (int j = 0; j < settingsNodeList.getLength(); j++) {
+////                    Element settingElement = (Element) settingsNodeList.item(j);
+////                    settings.put(settingElement.getNodeName(), placeholderResolver.resolveString(settingElement.getTextContent()));
+////                }
+////                resultNameStrategy.postConstruct(settings);
+//            } catch (Exception e) {
+//                throw new IllegalArgumentException("Exception instantiating " + methodClass, e);
+//            }
+//
+//
+//
+//        }
+    }
+
+    private void buildJmxInfoConfig(Element rootElement, JmxTransExporterConfiguration configuration) {
+        NodeList nodeJmxInfo = rootElement.getElementsByTagName("jmxInfo");
+        for (int i = 0; i < nodeJmxInfo.getLength(); i++) {
+            Element jmxInfoElement = (Element) nodeJmxInfo.item(i);
+            String host = jmxInfoElement.getAttribute("host");
+            String port = jmxInfoElement.getAttribute("port");
+            String username = jmxInfoElement.getAttribute("username");
+            String password = jmxInfoElement.getAttribute("password");
+            JmxInfo jmxInfo=new JmxInfo(host,port,username,password);
+            configuration.setJmxInfo(jmxInfo);
         }
     }
 

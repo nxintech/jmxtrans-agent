@@ -24,8 +24,6 @@
 package org.jmxtrans.agent;
 
 import org.jmxtrans.agent.util.GcdCalculator;
-import org.jmxtrans.agent.util.OpenFalconGroupMessage;
-import org.jmxtrans.agent.util.OpenFalconGroupThread;
 import org.jmxtrans.agent.util.logging.Logger;
 
 import javax.management.MBeanServerConnection;
@@ -37,7 +35,9 @@ import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -65,48 +65,43 @@ public class JmxTransExporter {
     private volatile JmxTransExporterConfiguration config;
     private volatile List<TimeTrackingCollector> collectors;
     private volatile long runIntervalMillis;
-
+    public static long staticRunIntervalMillis;
     public JmxTransExporter(JmxTransConfigurationLoader configLoader) {
         this.configLoader = configLoader;
         loadNewConfiguration();
     }
 
     private void loadNewConfiguration() {
-        String jmxURL = "service:jmx:rmi:///jndi/rmi://10.211.253.56:10053/jmxrmi";//tomcat jmx url
+        this.config = configLoader.loadConfiguration();
+        logger.finest("Configuration loaded: " + config);
+        this.collectors = createTimeTrackingCollectors();
+        this.runIntervalMillis = calculateRunIntervalMillis();
+        //设置静态变量，给outpwrite使用
+        staticRunIntervalMillis=this.runIntervalMillis;
+        JmxInfo jmxInfo=config.getJmxInfo();
+        String host=jmxInfo==null?"localhost":jmxInfo.getHost();
+        String port=jmxInfo==null?"10053":jmxInfo.getPort();
+        StringBuffer jmxURL=new StringBuffer("service:jmx:rmi:///jndi/rmi://");
+        jmxURL.append(host).append(":").append(port).append("/jmxrmi");
+        logger.info(String.format("connect to config jmxServer %s",jmxURL.toString()));
+        //String jmxURL = "service:jmx:rmi:///jndi/rmi://10.211.253.56:10053/jmxrmi";//tomcat jmx url
         try {
-            JMXServiceURL serviceURL  = new JMXServiceURL(jmxURL);
-            JMXConnector connect = JMXConnectorFactory.connect(serviceURL);
+            JMXServiceURL serviceURL  = new JMXServiceURL(jmxURL.toString());
+            JMXConnector connect=null;
+            if(null!=jmxInfo && jmxInfo.hasCredentialInfo()){
+                Map map = new HashMap();
+                String[] credentials = new String[] {jmxInfo.getUsername(), jmxInfo.getPassword() };
+                map.put("jmx.remote.credentials", credentials);
+                connect = JMXConnectorFactory.connect(serviceURL,map);
+            }else{
+                connect = JMXConnectorFactory.connect(serviceURL);
+            }
             mbeanServer=connect.getMBeanServerConnection();
-//            try {
-//                ObjectName objectName=new ObjectName("java.lang:type=Threading");
-//                Set<ObjectName> objectNames = mBeanServerConnection.queryNames(objectName, null);
-//                String attribute="ThreadCount";
-//                for(ObjectName objectName1 : objectNames){
-//                    Object obj = mBeanServerConnection.getAttribute(objectName, attribute);
-//                    System.out.println("ob="+obj);
-//                }
-//            } catch (MalformedObjectNameException e) {
-//                e.printStackTrace();
-//            } catch (AttributeNotFoundException e) {
-//                e.printStackTrace();
-//            } catch (InstanceNotFoundException e) {
-//                e.printStackTrace();
-//            } catch (ReflectionException e) {
-//                e.printStackTrace();
-//            } catch (MBeanException e) {
-//                e.printStackTrace();
-//            }
-
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        this.config = configLoader.loadConfiguration();
-        logger.finest("Configuration loaded: " + config);
-        this.collectors = createTimeTrackingCollectors();
-        this.runIntervalMillis = calculateRunIntervalMillis();
     }
 
 
@@ -237,16 +232,8 @@ public class JmxTransExporter {
         OutputWriter outputWriter = config.getOutputWriter();
         try {
             outputWriter.preCollect();
-            int index=collectors.size();
-            OpenFalconGroupMessage message= OpenFalconGroupThread.getCurrentThreadGroupMessage();
-            message.setOpenFalconOutputObjectList(null);
-            message.setRunIntervalMillis(runIntervalMillis);
             for (TimeTrackingCollector collector : collectors) {
-                index --;
                 try {
-                    if(index==0){
-                        message.setFinished(true);
-                    }
                     collector.collectIfEnoughTimeHasPassed(mbeanServer, outputWriter);
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "Ignore exception collecting with collector " + collector, e);
