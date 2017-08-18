@@ -158,7 +158,6 @@ public class JmxTransExporter {
                 collectAndExport();
             }
         }, runIntervalMillis / 2, runIntervalMillis, TimeUnit.MILLISECONDS);
-        logger.info("getConfigReloadInterVal is "+config.getConfigReloadInterval());
         if (config.getConfigReloadInterval() >= 0) {
             Runnable runnable = new Runnable() {
                 private final Logger logger = Logger.getLogger(JmxTransExporter.class.getName() + ".reloader");
