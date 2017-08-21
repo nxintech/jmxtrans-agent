@@ -30,6 +30,7 @@ import org.jmxtrans.agent.OutputWriter;
 import org.jmxtrans.agent.util.ConfigurationUtils;
 import org.jmxtrans.agent.util.OpenFalconOutputObject;
 import org.jmxtrans.agent.util.StringUtils2;
+import org.jmxtrans.agent.util.io.IoRuntimeException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -39,10 +40,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.IOException;
-import java.io.StringReader;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.io.*;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,17 +58,26 @@ public class OpenFalconConsoleOutputWriter extends AbstractOutputWriter implemen
     private String endPoint="#unknown";
     private List<Aggregate> aggregateList=new ArrayList<>();
     private Map<String,Object> queryValueMap=new HashMap<>();
+    private int connectTimeoutMillis=10000;//单位毫秒
+    private int readTimeoutMillis=2000;//读取超时 单位毫秒
+    private URL url;
+    private final static String aggregateKey="aggregates";
     @Override
     public void postConstruct(@Nonnull Map<String, String> settings) {
         this.metricPathPrefix = StringUtils2.trimToEmpty(settings.get("namePrefix"));
         try {
             endPoint= InetAddress.getLocalHost().getHostName();
-            String aggregateXml = ConfigurationUtils.getString(settings, "aggregates");
-            initAggregate(aggregateXml);
+            if(settings.containsKey(aggregateKey)){
+                String aggregateXml = ConfigurationUtils.getString(settings, aggregateKey);
+                initAggregate(aggregateXml);
+            }
+            url=new URL(ConfigurationUtils.getString(settings, "url", null));
         } catch (UnknownHostException e) {
             e.printStackTrace();
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
         }
-        logger.info("OpenFalconConsoleOutputWriter postConstruct invoked");
+        logger.info("OpenFalconHttpWriter postConstruct invoked");
     }
 
     private void initAggregate(String aggregateXml) {
@@ -91,14 +99,11 @@ public class OpenFalconConsoleOutputWriter extends AbstractOutputWriter implemen
                 String resultAlias = aggregateElement.getAttribute("resultAlias");
                 String type = aggregateElement.getAttribute("type");
                 String className = aggregateElement.getAttribute("class");
-                System.out.println("aggregate is "+ i +" : " +resultAlias+";type="+type+";"+className);
                 NodeList aggregateQueryResultList = aggregateElement.getElementsByTagName("queryResultKey");
                 for (int j = 0; j < aggregateQueryResultList.getLength(); j++) {
-                    //System.out.println("next is "+ag);
                     Element aggregateQuery = (Element) aggregateQueryResultList.item(j);
                     String queryResultKey=aggregateQuery.getTextContent();
                     resultKeyList.add(queryResultKey);
-                    System.out.println("find  query result key is "+queryResultKey);
                 }
                 aggregate.setResultAlias(resultAlias);
                 aggregate.setType(type);
@@ -131,18 +136,18 @@ public class OpenFalconConsoleOutputWriter extends AbstractOutputWriter implemen
     @Override
     public void writeInvocationResult(@Nonnull String invocationName, @Nullable Object value) throws IOException {
         System.out.println("writeInvocationResult  invocationName is  "+invocationName+" ,  value is  "+value+" ;  TimeUnit is "+TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
-        //System.out.println(metricPathPrefix + invocationName + " " + value + " " + TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS));
     }
 
     @Override
     public void postCollect() throws IOException {
         logger.info("postCellect doing");
         for(Aggregate aggregate : aggregateList){
-            System.out.println("aggregate value is "+aggregate);
             AggregateMethod <Double> aggregateMethod=aggregate.getAggregateMethod();
             List<Double> valueList=new ArrayList<>();
             for(String resultKey : aggregate.getResultKeyList()){
                 Object value =queryValueMap.get(resultKey);
+                if(null==value || value.toString().isEmpty())
+                    continue;
                 if(value instanceof Integer){
                     valueList.add(new Double(value.toString()));
                 }else if(value instanceof Long){
@@ -154,7 +159,40 @@ public class OpenFalconConsoleOutputWriter extends AbstractOutputWriter implemen
             OpenFalconOutputObject openFalconOutputObject=OpenFalconOutputObject.createNewOpenFalconOutObject(null,aggregate.getType(),value,aggregate.getResultAlias(),JmxTransExporter.staticRunIntervalMillis,endPoint);
             openFalconOutputObjectList.add(openFalconOutputObject);
         }
-        logger.info(JSON.toJSONString(openFalconOutputObjectList));
+        String json=JSON.toJSONString(openFalconOutputObjectList);
+        logger.info(String.format("send json body %s  to server url %s ",json,url));
         openFalconOutputObjectList.clear();
+
+    }
+
+    private HttpURLConnection getHttpConnection() {
+        try {
+            HttpURLConnection conn=(HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(connectTimeoutMillis);
+            conn.setReadTimeout(readTimeoutMillis);
+            conn.setRequestMethod("POST");// 提交模式
+            conn.setDoOutput(true);// 是否输入参数
+            return conn;
+        } catch (IOException | ClassCastException e) {
+            throw new IoRuntimeException("Failed to create HttpURLConnection to " + url + " - is it a valid HTTP url?",
+                    e);
+        }
+    }
+
+    private void sendHttpRequest(HttpURLConnection conn, String body)
+            throws UnsupportedEncodingException, IOException {
+        byte[] toSendBytes = body.getBytes("UTF-8");
+        OutputStream outputStream =conn.getOutputStream();
+        //conn.setRequestProperty("Content-Length", Integer.toString(toSendBytes.length));
+        try {
+            outputStream.write(toSendBytes);// 输入参数
+            outputStream.flush();
+            InputStream inStream=conn.getInputStream();
+            int reponseCode=conn.getResponseCode();
+            if(200!=reponseCode)
+                logger.warning("sendHttpRequest error,responseCode is  " + reponseCode);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

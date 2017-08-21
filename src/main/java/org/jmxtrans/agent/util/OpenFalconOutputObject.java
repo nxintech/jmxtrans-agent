@@ -72,7 +72,9 @@ public class OpenFalconOutputObject {
 
     public static OpenFalconOutputObject createNewOpenFalconOutObject(String objectName, String type, Object value, String resultAlias,long step,String endpoint) {
         OpenFalconOutputObject openFalconOutputObject=new OpenFalconOutputObject();
-        openFalconOutputObject.setTags(objectName);
+        String [] aliasName=resultAlias.split("\\.");
+        String tagsNameValue=aliasName.length>0?aliasName[aliasName.length-1]:"";
+        openFalconOutputObject.setTags("name="+tagsNameValue);
         openFalconOutputObject.setCounterType(type);
         openFalconOutputObject.setStep(step/1000);
         openFalconOutputObject.setValue(value);

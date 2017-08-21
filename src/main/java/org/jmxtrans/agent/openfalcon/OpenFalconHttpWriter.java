@@ -31,7 +31,6 @@ import org.jmxtrans.agent.util.ConfigurationUtils;
 import org.jmxtrans.agent.util.OpenFalconOutputObject;
 import org.jmxtrans.agent.util.StringUtils2;
 import org.jmxtrans.agent.util.io.IoRuntimeException;
-import org.jmxtrans.agent.util.io.IoUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -62,14 +61,17 @@ public class OpenFalconHttpWriter extends AbstractOutputWriter implements Output
     private int connectTimeoutMillis=10000;//单位毫秒
     private int readTimeoutMillis=2000;//读取超时 单位毫秒
     private URL url;
+    private final static String aggregateKey="aggregates";
     @Override
     public void postConstruct(@Nonnull Map<String, String> settings) {
         this.metricPathPrefix = StringUtils2.trimToEmpty(settings.get("namePrefix"));
         try {
             endPoint= InetAddress.getLocalHost().getHostName();
-            String aggregateXml = ConfigurationUtils.getString(settings, "aggregates");
+            if(settings.containsKey(aggregateKey)){
+                String aggregateXml = ConfigurationUtils.getString(settings, aggregateKey);
+                initAggregate(aggregateXml);
+            }
             url=new URL(ConfigurationUtils.getString(settings, "url", null));
-            initAggregate(aggregateXml);
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (MalformedURLException e) {
@@ -141,11 +143,12 @@ public class OpenFalconHttpWriter extends AbstractOutputWriter implements Output
     public void postCollect() throws IOException {
         logger.info("postCellect doing");
         for(Aggregate aggregate : aggregateList){
-            System.out.println("aggregate value is "+aggregate);
             AggregateMethod <Double> aggregateMethod=aggregate.getAggregateMethod();
             List<Double> valueList=new ArrayList<>();
             for(String resultKey : aggregate.getResultKeyList()){
                 Object value =queryValueMap.get(resultKey);
+                if(null==value || value.toString().isEmpty())
+                    continue;
                 if(value instanceof Integer){
                     valueList.add(new Double(value.toString()));
                 }else if(value instanceof Long){
@@ -187,17 +190,11 @@ public class OpenFalconHttpWriter extends AbstractOutputWriter implements Output
             outputStream.write(toSendBytes);// 输入参数
             outputStream.flush();
             InputStream inStream=conn.getInputStream();
+            int reponseCode=conn.getResponseCode();
+            if(200!=reponseCode)
+                logger.warning("sendHttpRequest error,responseCode is  " + reponseCode);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private String readResponse(HttpURLConnection conn) throws IOException, UnsupportedEncodingException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (InputStream is = conn.getInputStream()) {
-            IoUtils.copy(is, baos);
-        }
-        String response = new String(baos.toByteArray(), "UTF-8");
-        return response;
     }
 }
