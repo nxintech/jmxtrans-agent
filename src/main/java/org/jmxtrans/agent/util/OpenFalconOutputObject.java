@@ -74,7 +74,7 @@ public class OpenFalconOutputObject {
         OpenFalconOutputObject openFalconOutputObject=new OpenFalconOutputObject();
         String [] aliasName=resultAlias.split("\\.");
         String tagsNameValue=aliasName.length>0?aliasName[aliasName.length-1]:"";
-        openFalconOutputObject.setTags("name="+tagsNameValue);
+        //openFalconOutputObject.setTags("name="+tagsNameValue);
         openFalconOutputObject.setCounterType(type);
         openFalconOutputObject.setStep(step/1000);
         openFalconOutputObject.setValue(value);
