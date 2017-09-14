@@ -78,7 +78,10 @@ public class JmxTransExporter {
         this.runIntervalMillis = calculateRunIntervalMillis();
         //设置静态变量，给outpwrite使用
         staticRunIntervalMillis=this.runIntervalMillis;
-        JmxInfo jmxInfo=config.getJmxInfo();
+        connectServer(config.getJmxInfo());
+    }
+
+    private void connectServer(JmxInfo jmxInfo){
         String host=jmxInfo==null?"localhost":jmxInfo.getHost();
         String port=jmxInfo==null?"10053":jmxInfo.getPort();
         StringBuffer jmxURL=new StringBuffer("service:jmx:rmi:///jndi/rmi://");
@@ -103,7 +106,6 @@ public class JmxTransExporter {
             e.printStackTrace();
         }
     }
-
 
     private List<TimeTrackingCollector> createTimeTrackingCollectors() {
         List<TimeTrackingCollector> newCollectors = new ArrayList<>();
@@ -236,6 +238,7 @@ public class JmxTransExporter {
                     collector.collectIfEnoughTimeHasPassed(mbeanServer, outputWriter);
                 } catch (Exception e) {
                     logger.log(Level.WARNING, "Ignore exception collecting with collector " + collector, e);
+                    connectServer(config.getJmxInfo());
                 }
 
 

@@ -23,13 +23,13 @@
 -->
 <jmxtrans-agent>
     <collectIntervalInSeconds>1</collectIntervalInSeconds>
-    <jmxInfo host="10.211.253.56" port="10053"/>
+    <jmxInfo host="10.211.253.119" port="10053"/>
     <queries>
-        <query objectName="java.lang:type=Threading" attribute="ThreadCount" resultAlias="jvm.thread" type="GUAGE"/>
-        <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.max" type="GUAGE"/>
-    	<query objectName="java.lang:type=Memory" attribute="HeapMemoryUsage" key="used" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.used" type="GUAGE"/>
-    	<query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.max" type="GUAGE"/>
-    	<query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="used" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.used" type="GUAGE"/>
+
+    <!-- Memory -->
+
+    <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsagePercent" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.usedPercent" type="GAUGE"/>
+    <query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.max" type="GAUGE"/>
     </queries>
     <!--<outputWriter class="org.jmxtrans.agent.ConsoleOutputWriter"/>-->
     <outputWriter class="org.jmxtrans.agent.openfalcon.OpenFalconHttpWriter">
