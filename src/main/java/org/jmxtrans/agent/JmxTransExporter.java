@@ -243,7 +243,15 @@ public class JmxTransExporter {
 
 
             }
-            outputWriter.postCollect();
+            try{
+               int  mbeanServerCount =mbeanServer.getMBeanCount();
+               if(mbeanServerCount>50){
+                   outputWriter.postCollect();
+               }
+            }catch (IOException e) {
+                    e.printStackTrace();
+            }
+
         } catch (Exception e) {
             logger.log(Level.WARNING, "Ignore exception flushing metrics ", e);
         }
