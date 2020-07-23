@@ -73,7 +73,7 @@ public class JmxTransExporter {
 
     private void loadNewConfiguration() {
         this.config = configLoader.loadConfiguration();
-        logger.finest("Configuration loaded: " + config);
+        logger.info("Configuration loaded: " + config);
         this.collectors = createTimeTrackingCollectors();
         this.runIntervalMillis = calculateRunIntervalMillis();
         //设置静态变量，给outpwrite使用
@@ -100,6 +100,7 @@ public class JmxTransExporter {
                 connect = JMXConnectorFactory.connect(serviceURL);
             }
             mbeanServer=connect.getMBeanServerConnection();
+            logger.info("connect is "+connect+";mbeanServer="+mbeanServer);
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -160,6 +161,7 @@ public class JmxTransExporter {
                 collectAndExport();
             }
         }, runIntervalMillis / 2, runIntervalMillis, TimeUnit.MILLISECONDS);
+        logger.info("logger level is "+Logger.level+" ; runIntervalMillis is "+runIntervalMillis+"; config reload interval is "+config.getConfigReloadInterval());
         if (config.getConfigReloadInterval() >= 0) {
             Runnable runnable = new Runnable() {
                 private final Logger logger = Logger.getLogger(JmxTransExporter.class.getName() + ".reloader");
@@ -244,10 +246,7 @@ public class JmxTransExporter {
 
             }
             try{
-               int  mbeanServerCount =mbeanServer.getMBeanCount();
-               if(mbeanServerCount>50){
-                   outputWriter.postCollect();
-               }
+                outputWriter.postCollect();
             }catch (IOException e) {
                     e.printStackTrace();
             }

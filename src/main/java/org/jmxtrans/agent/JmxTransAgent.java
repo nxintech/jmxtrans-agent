@@ -134,7 +134,6 @@ public class JmxTransAgent {
         }
         try {
             logger.info("Starting '" + getVersionInfo() + "' with configuration '" + configPath + "'...");
-
             PropertiesLoader propertiesLoader = createPropertiesLoader();
             Resource configuration = ResourceFactory.newResource(configPath);
             ExpressionLanguageEngine expressionLanguageEngine = new ExpressionLanguageEngineImpl();

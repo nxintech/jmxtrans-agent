@@ -120,6 +120,7 @@ public class OutputWriterCircuitBreakerDecorator implements OutputWriter {
         if (isDisabled()) {
             return;
         }
+        logger.info("invoke delegate collection ");
         try {
             delegate.postCollect();
             incrementOutputWriterSuccess();

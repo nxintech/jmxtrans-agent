@@ -23,11 +23,10 @@
 -->
 <jmxtrans-agent>
     <collectIntervalInSeconds>1</collectIntervalInSeconds>
-    <jmxInfo host="10.211.253.119" port="10053"/>
+<!--    <jmxInfo host="10.222.18.13" port="10053"/>-->
+    <jmxInfo host="10.222.14.73" port="10053"/>
     <queries>
-
     <!-- Memory -->
-
     <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsagePercent" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.usedPercent" type="GAUGE"/>
     <query objectName="java.lang:type=Memory" attribute="NonHeapMemoryUsage" key="max" resultAlias="jvm.java.lang.Memory.NonHeapMemoryUsage.max" type="GAUGE"/>
     </queries>

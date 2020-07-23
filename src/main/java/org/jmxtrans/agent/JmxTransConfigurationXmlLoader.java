@@ -103,12 +103,11 @@ public class JmxTransConfigurationXmlLoader implements JmxTransConfigurationLoad
 
     protected JmxTransExporterConfiguration build(Document document) {
 
-
+        logger.info("JmxTransConfigurationXmlLoader document is "+document);
         Element rootElement = document.getDocumentElement();
         Map<String, String> loadedProperties = loadPropertiesOrEmptyOnException();
         PropertyPlaceholderResolver resolver = new PropertyPlaceholderResolver(loadedProperties);
         JmxTransExporterConfiguration jmxTransExporterConfiguration = new JmxTransExporterConfiguration(document);
-
         Integer collectInterval = getIntegerElementValueOrNullIfNotSet(rootElement, COLLECT_INTERVAL_NAME, resolver);
         if (collectInterval != null) {
             jmxTransExporterConfiguration.withCollectInterval(collectInterval, TimeUnit.SECONDS);
