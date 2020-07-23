@@ -23,8 +23,7 @@
 -->
 <jmxtrans-agent>
     <collectIntervalInSeconds>1</collectIntervalInSeconds>
-<!--    <jmxInfo host="10.222.18.13" port="10053"/>-->
-    <jmxInfo host="10.222.14.73" port="10053"/>
+    <jmxInfo host="localhost" port="10053"/>
     <queries>
     <!-- Memory -->
     <query objectName="java.lang:type=Memory" attribute="HeapMemoryUsagePercent" resultAlias="jvm.java.lang.Memory.HeapMemoryUsage.usedPercent" type="GAUGE"/>
